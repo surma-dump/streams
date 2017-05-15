@@ -360,7 +360,7 @@ like
     cancel(reason)
     getReader()
     pipeThrough({ writable, readable }, options)
-    pipeTo(dest, { preventClose, preventAbort, preventCancel } = {})
+    pipeTo(dest, { preventClose, preventAbort, preventCancel, signal } = {})
     tee()
   }
 </code></pre>
@@ -586,7 +586,7 @@ ReadableStream(<var>underlyingSource</var> = {}, { <var>size</var>, <var>highWat
 </div>
 
 <h5 id="rs-pipe-to" method for="ReadableStream" lt="pipeTo(dest, options)">pipeTo(<var>dest</var>, {
-<var>preventClose</var>, <var>preventAbort</var>, <var>preventCancel</var> } = {})</h5>
+<var>preventClose</var>, <var>preventAbort</var>, <var>preventCancel</var>, <var>signal</var> } = {})</h5>
 
 <div class="note">
   The <code>pipeTo</code> method <a lt="piping">pipes</a> this <a>readable stream</a> to a given <a>writable
@@ -617,6 +617,12 @@ ReadableStream(<var>underlyingSource</var> = {}, { <var>size</var>, <var>highWat
     promise will be rejected with an error indicating piping to a closed stream failed, or with any error that occurs
     during canceling the source.</p></li>
   </ul>
+
+  The <code>signal</code> option can be set to an {{AbortSignal}} to allow aborting an ongoing pipe operation via the
+  corresponding {{AbortController}}. In this case, the source <a>readable stream</a> will be <a lt="cancel a readable
+  stream">canceled</a>, and the destination <a>writable stream</a> <a lt="abort a writable stream">aborted</a>, unless
+  the respective options <code>preventCancel</code> or <code>preventAbort</code> are set.
+
 </div>
 
 <emu-alg>
@@ -624,6 +630,8 @@ ReadableStream(<var>underlyingSource</var> = {}, { <var>size</var>, <var>highWat
   1. If ! IsWritableStream(_dest_) is *false*, return <a>a promise rejected with</a> a *TypeError* exception.
   1. Set _preventClose_ to ! ToBoolean(_preventClose_), set _preventAbort_ to ! ToBoolean(_preventAbort_), and set
      _preventCancel_ to ! ToBoolean(_preventCancel_).
+  1. If _signal_ is not *undefined*, and _signal_ is not an instance of the {{AbortSignal}} interface, return <a>a
+     promise rejected with</a> a *TypeError* exception.
   1. If ! IsReadableStreamLocked(*this*) is *true*, return <a>a promise rejected with</a> a *TypeError* exception.
   1. If ! IsWritableStreamLocked(_dest_) is *true*, return <a>a promise rejected with</a> a *TypeError* exception.
   1. If ! IsReadableByteStreamController(*this*.[[readableStreamController]]) is *true*, let _reader_ be either !
@@ -674,6 +682,16 @@ ReadableStream(<var>underlyingSource</var> = {}, { <var>size</var>, <var>highWat
          1. If _preventCancel_ is *false*, <a href="#rs-pipeTo-shutdown-with-action">shutdown with an action</a> of !
             ReadableStreamCancel(*this*, _destClosed_) and with _destClosed_.
          1. Otherwise, <a href="#rs-pipeTo-shutdown">shutdown</a> with _destClosed_.
+     * <strong>Abort signals must stop activity:</strong> if _signal_ is not *undefined*, the following algorithm must
+       be added to _signal_'s <a for="AbortSignal">abort algorithms</a>:
+         1. Let _error_ be a new "`<a idl>AbortError</a>`" `<a idl>DOMException</a>`.
+         1. Let _actions_ be an empty <a>ordered set</a>.
+         1. If _preventAbort_ is *false*, <a for="set">append</a> the action of performing !
+            WritableStreamAbort(_dest_, _error_) to _actions_.
+         1. If _preventCancel_ is *false*, <a for="set">append</a> the action of performing !
+            ReadableStreamCancel(*this*, _error_) to _actions_.
+         1. <a href="#rs-pipeTo-shutdown-with-action">Shutdown with an action</a> consisting of <a>waiting for all</a>
+            of the actions in _actions_, and with _error_.
      * <i id="rs-pipeTo-shutdown-with-action">Shutdown with an action</i>: if any of the above requirements ask to
        shutdown with an action _action_, optionally with an error _originalError_, then:
        1. If _dest_.[[state]] is `"writable"` and ! WritableStreamCloseQueuedOrInFlight(dest) is *false*,
@@ -700,6 +718,8 @@ ReadableStream(<var>underlyingSource</var> = {}, { <var>size</var>, <var>highWat
        an error _error_, which means to perform the following steps:
        1. Perform ! WritableStreamDefaultWriterRelease(_writer_).
        1. Perform ! ReadableStreamReaderGenericRelease(_reader_).
+       1. If _signal_ is not *undefined*, remove the above algorithm from _signal_'s <a for="AbortSignal">abort
+          algorithms</a>.
        1. If _error_ was given, <a>reject</a> _promise_ with _error_.
        1. Otherwise, <a>resolve</a> _promise_ with *undefined*.
   1. Return _promise_.
