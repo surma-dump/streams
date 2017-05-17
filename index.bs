@@ -682,8 +682,8 @@ ReadableStream(<var>underlyingSource</var> = {}, { <var>size</var>, <var>highWat
          1. If _preventCancel_ is *false*, <a href="#rs-pipeTo-shutdown-with-action">shutdown with an action</a> of !
             ReadableStreamCancel(*this*, _destClosed_) and with _destClosed_.
          1. Otherwise, <a href="#rs-pipeTo-shutdown">shutdown</a> with _destClosed_.
-     * <strong>Abort signals must stop activity:</strong> if _signal_ is not *undefined*, the following algorithm must
-       be added to _signal_'s <a for="AbortSignal">abort algorithms</a>:
+     * <strong>Abort signals must stop activity:</strong> if _signal_ is not *undefined*, the following algorithm
+       _abortAlgorithm_ must be <a for="AbortSignal">added</a> to _signal_:
          1. Let _error_ be a new "`<a idl>AbortError</a>`" `<a idl>DOMException</a>`.
          1. Let _actions_ be an empty <a>ordered set</a>.
          1. If _preventAbort_ is *false*, <a for="set">append</a> the action of performing !
@@ -718,8 +718,7 @@ ReadableStream(<var>underlyingSource</var> = {}, { <var>size</var>, <var>highWat
        an error _error_, which means to perform the following steps:
        1. Perform ! WritableStreamDefaultWriterRelease(_writer_).
        1. Perform ! ReadableStreamReaderGenericRelease(_reader_).
-       1. If _signal_ is not *undefined*, remove the above algorithm from _signal_'s <a for="AbortSignal">abort
-          algorithms</a>.
+       1. If _signal_ is not *undefined*, <a for="AbortSignal">remove</a> _abortAlgorithm_ from _signal_.
        1. If _error_ was given, <a>reject</a> _promise_ with _error_.
        1. Otherwise, <a>resolve</a> _promise_ with *undefined*.
   1. Return _promise_.
